@@ -1,0 +1,509 @@
+---
+title: "Multiple Linear Regression"
+author: "gdr"
+date: "August 12, 2019 updated Oct 17, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# What is a linear regression?
+A linear regression is a statistical model that analyzes the relationship between a response variable (often called y) and one or more variables and their interactions (often called x or explanatory variables). You make this kind of relationships in your head all the time, for example when you calculate the age of a child based on her height, you are assuming the older she is, the taller she will be. Linear regression is one of the most basic statistical models out there, its results can be interpreted by almost everyone, and it has been around since the 19th century. This is precisely what makes linear regression so popular. It's simple, and it has survived for hundreds of years. Even though it is not as sophisticated as other algorithms like artificial neural networks or random forests, according to a survey made by KD Nuggets, regression was the algorithm most used by data scientists in 2016 and 2017. It's even predicted it's still going to be the used in year 2118!
+
+# Creating a Linear Regression in R.
+Not every problem can be solved with the same algorithm. In this case, linear regression assumes that there exists a linear relationship between the response variable and the explanatory variables. This means that you can fit a line between the two (or more variables). In the previous example, it is clear that there is a relationship between the age of children and their height.
+
+# Requirements:
+## Dataset : car_data 
+
+```{r echo=FALSE}
+library(readxl)
+car_data <- read_excel("car_data.xlsx")
+car_data
+View(car_data)
+```
+
+# Subsetting the dataset
+Here we select only Volkswagen cars from the large dataset. Because different types of cars have different brand value and higher or lower price. So we take only one car company for better prediction.
+
+```{r}
+Volkswagen = subset(car_data, car_data$Make == 'Volkswagen')
+dim(Volkswagen)
+head(Volkswagen, 5)
+```
+
+
+# New dataset for regression
+Here we select only 3 specific (Engine HP, 'city mpg' and MSRP) columns from all columns. It is very important to select only those columns which could be helpful for prediction. It depends on your common sense to select those columns. Please select those columns that wouldn't spoil your prediction. After select only 3 columns, we view our new dataset.
+
+```{r}
+new_dataset <-data.frame(Volkswagen$MSRP, Volkswagen$`Engine HP`, Volkswagen$`city mpg`)
+new_dataset
+View(new_dataset)
+```
+
+# Plot by pair
+Here we plot a scatter plot graph pairs. 
+```{r}
+plot(new_dataset, col = 'blue')
+```
+
+# Perform linear regression model
+After viewing this graph we are ensured that we can perform a linear regression for prediction.
+```{r}
+linreg = lm(Volkswagen$MSRP ~ Volkswagen$`Engine HP` + Volkswagen$`city mpg`, data = new_dataset) #Create the linear regression
+```
+
+Here we plot a scatter plot graph between X and y datasets and we draw a regression line.
+
+```{r}
+summary(linreg)
+```
+So the price of Volkswagen car as function of engine HP is
+MSRP = -14825.675 + 198.622 * Engine HP + 222.128 * city mpg
+
+# Make line prediction
+```{r}
+engine_HP = 200
+city_mpg = 12
+price_VW = -14825.675 + 198.622 * engine_HP + 222.128 * city_mpg
+paste0('the price of VW car with ', 
+       engine_HP, ' HP and ', 
+       city_mpg, ' mile per gallon mileage is approximately ', 
+       price_VW)
+```
+
+
+# Classic assumptions of Linear Regression
+Building a linear regression model is only half of the work. In order to actually be usable in practice, the model should conform to the assumptions of linear regression.
+
+## Assumption 1
+The regression model is linear in parameters: MSRP = -14825.675 + 198.622 * Engine HP + 222.128 * city mpg
+An example of model equation that is linear in parameters 
+Y = a + (β1*X1) + (β2*X22), with a=-14825.675,β1=198.622,β2=222.128.  
+Though, the X2 is raised to power 2, the equation is still linear in beta parameters. So the assumption is satisfied in this case.
+
+## Assumption 2
+The mean of residuals is zero
+How to check?
+Check the mean of the residuals. If it zero (or very close), then this assumption is held true for that model. This is default unless you explicitly make amends, such as setting the intercept term to zero.
+
+```{r}
+mean(linreg$residuals) 
+```
+Since the mean of residuals 5.191837e-13 is approximately zero, this assumption holds true for this model.
+
+## Assumption 3
+Homoscedasticity of residuals or equal variance. How to check?
+Once the regression model is built, set par(mfrow=c(2, 2)), then, plot the model using plot(lm.linreg). This produces four plots. The top-left and bottom-left plots shows how the residuals vary as the fitted values increase.
+
+```{r}
+par(mfrow=c(2,2)) 
+plot(linreg)
+```
+
+From the first plot (top-left), as the fitted values along x increase, the residuals increase and then decrease and then increase along the zero line. This pattern is indicated by the red line, which should be approximately flat if the disturbances are homoscedastic. The plot on the bottom left also checks this, and is more convenient as the disturbance term in Y axis is standardized. Normal Q-Q plot show consistent points along the line between -2 and +2.
+In this case, there is no definite pattern noticed of  heteroscedasticity. 
+
+The plot in the bottom right is the plot of standardized residuals against the leverage. Leverage is a measure of how much each data point influences the regression. The plot also contours values of Cook’s distance, which reflects how much the fitted values would change if a point was deleted.
+A point far from the centroid with a large residual can severely distort the regression. For a good regression model, the red smoothed line should stay close to the mid-line and no point should have a large cook’s distance (i.e. should not have too much influence on the model.)
+
+## Assumption 4
+No autocorrelation of residuals
+This is applicable especially for time series data. Autocorrelation is the correlation of a time Series with lags of itself. When the residuals are autocorrelated, it means that the current value is dependent of the previous (historic) values and that there is a definite unexplained pattern in the Y variable that shows up in the disturbances.
+
+How to check for autocorrelation?
+Below, are 3 ways we could check for autocorrelation of residuals.
+
+Method 1: Visualise with acf plot
+```{r}
+library(ggplot2) 
+
+acf(linreg$residuals) # highly autocorrelated from the picture.
+```
+The X axis corresponds to the lags of the residual, increasing in steps of 1. The very first line (to the left) shows the correlation of residual with itself (Lag0), therefore, it will always be equal to 1.
+If the residuals were not autocorrelated, the correlation (Y-axis) from the immediate next line onwards will drop to a near zero value below the dashed blue line (significance level). Clearly, this is the not case here. So we can conclude that the residuals are autocorrelated up to lag 10.
+
+Method 2: Using runs test
+
+```{r}
+# Method 2: Runs test to test for randomness 
+lawstat::runs.test(linreg$residuals) 
+```
+
+With a p-value < 2.2e-16, we reject the null hypothesis that it is random. This means there is a definite pattern in the residuals.
+
+Method 3: Using Durbin-Watson test.
+One way to determine if this assumption is met is to perform a Durbin-Watson test, which is used to detect the presence of autocorrelation in the residuals of a regression. This test uses the following hypotheses:
+
+H0 (null hypothesis): There is no correlation among the residuals.
+HA (alternative hypothesis): The residuals are autocorrelated.
+
+```{r}
+library(car)
+
+#perform Durbin-Watson test
+durbinWatsonTest(linreg)
+```
+
+From the output we can see that the test statistic is 0.9094401 and the corresponding p-value is 0. Since this p-value is less than 0.05, we can reject the null hypothesis and conclude that the residuals in this regression model are autocorrelated.
+
+## Assumption 5
+The X variables and residuals are uncorrelated
+How to check?
+```{r}
+cor.test(Volkswagen$`Engine HP`, linreg$residuals) # do correlation test 
+```
+p-value is 1, so null hypothesis that true correlation is 0 can't be rejected. So, the assumption holds true for this model.
+
+```{r}
+cor.test(Volkswagen$`city mpg`, linreg$residuals) # do correlation test 
+```
+
+p-value is 1, so null hypothesis that true correlation is 0 can't be rejected. So, the assumption holds true for this model.
+
+## Assumption 6
+The number of observations must be greater than number of Xs
+This can be directly observed by looking at the data: number of observation 809 while number X is 2.
+
+## Assumption 7
+The variability in X values is positive
+This means the X values in a given sample must not all be the same (or even nearly the same).
+How to check?
+```{r}
+var(Volkswagen$`Engine HP`)
+var(Volkswagen$`city mpg`) 
+```
+The variance in the X variable above is much larger than 0. So, this assumption is satisfied.
+
+## Assumption 8
+The regression model is correctly specified
+This means that if the Y and X variable has an inverse relationship, the model equation should be specified appropriately:
+```{r}
+summary(linreg)
+```
+
+Y and X variable does not have an inverse relationship. The regression model is correctly specified.
+
+## Assumption 9
+No perfect multicollinearity
+There is no perfect linear relationship between explanatory variables. How to check?
+Using Variance Inflation factor (VIF). But, What is VIF?
+VIF is a metric computed for every X variable that goes into a linear model. If the VIF of a variable is high, it means the information in that variable is already explained by other X variables present in the given model, which means, more redundant is that variable. So, lower the VIF (<2) the better. VIF for a X var is calculated as:
+
+
+VIF=1/(1−Rsq)
+
+where, Rsq is the Rsq term for the model with given X as response against all other Xs that went into the model as predictors.
+Practically, if two of the X′s have high correlation, they will likely have high VIFs. Generally, VIF for an X variable should be less than 4 in order to be accepted as not causing multi-collinearity. The cutoff is kept as low as 2, if you want to be strict about your X variables.
+
+```{r}
+library(car) # Loading required package: carData
+vif(linreg)
+```
+
+Practically, if two of the X′s have high correlation, they will likely have high VIFs. Generally, VIF for an X variable should be less than 4 in order to be accepted as not causing multi-collinearity. The cutoff is kept as low as 2, if you want to be strict about your X variables.
+There is no multicollinearity for X is only less than 4.
+
+In case collinearity exists, how to rectify?
+Two ways:
+1.	Either iteratively remove the X var with the highest VIF or,
+2.	See correlation between all variables and keep only one of all highly correlated pairs.
+
+```{r}
+library(corrplot)
+corrplot(cor(data.frame(Volkswagen$`Engine HP`, Volkswagen$`city mpg`, Volkswagen$MSRP )))
+```
+
+
+The convention is, the VIF should not go more than 4 for any of the X variables. That means we are not letting the RSq of any of the Xs (the model that was built with that X as a response variable and the remaining Xs are predictors) to go more than 75%. => 1/(1-0.75) => 1/0.25 => 4.
+
+## Assumption 10
+Normality of residuals
+The residuals should be normally distributed. If the maximum likelihood method (not OLS) is used to compute the estimates, this also implies the Y and the Xs are also normally distributed.
+This can be visually checked using the qqnorm() plot (top right plot).
+```{r}
+plot(linreg)
+```
+
+The qqnorm() plot in 2nd plot above evaluates this assumption. If points lie exactly on the line, it is perfectly normal distribution. However, some deviation is to be expected, particularly near the ends (note the upper right), but the deviations should be small, even lesser that they are here.
+
+
+## Kolmogorov-Smirnov Test
+The Kolmogorov-Smirnov test is used to test whether or not or not a sample comes from a certain distribution (pnorm=normal distribution).
+
+To perform a one-sample or two-sample Kolmogorov-Smirnov test in R we can use the ks.test() function.
+```{r}
+ks.test(linreg$residuals, "pnorm", alternative = "two.sided")
+```
+
+From the output we can see that the test statistic is 0.56489 and the corresponding p-value is 2.2e-16. Since the p-value is less than .05, we reject the null hypothesis. We have sufficient evidence to say that the sample data does not come from a normal distribution.
+
+# Check Assumptions Automatically
+The gvlma() function from gvlma offers a way to check the important assumptions on a given linear model.
+Perform a single global test to assess the linear model assumptions, as well as perform specific directional tests designed to detect skewness, kurtosis, a nonlinear link function, and heteroscedasticity.
+
+```{r}
+library(gvlma)
+carModel <- gvlma(linreg)
+summary(carModel)
+```
+All assumptions are not satisfied. 
+
+
+# influence.measures {stats}	R Documentation
+Regression Deletion Diagnostics
+Description
+This suite of functions can be used to compute some of the regression (leave-one-out deletion) diagnostics for linear and generalized linear models discussed in Belsley, Kuh and Welsch (1980), Cook and Weisberg (1982), etc.
+
+Usage
+```{r}
+influence.measures(linreg) 
+```
+
+
+# Predict linear model
+```{r}
+# dataset for prediction
+x <- data.frame(Volkswagen$`Engine HP`, Volkswagen$`city mpg`)
+y <- Volkswagen$MSRP
+x=as.matrix(x)
+
+predict.linear <- predict(linreg, data.frame(x), type = "response")
+plot(y, predict.linear, col='red')
+abline(lm(y ~ predict.linear))
+```
+
+
+# Calculate the R-squared of the linear model:
+```{r}
+#find SST and SSE
+sst <- sum((y - mean(y))^2)
+paste0("sst linear= ", sst)
+sse <- sum((predict.linear - y)^2)
+paste0("sse linear= ", sse)
+
+#find R-Squared
+rsq <- 1 - sse/sst
+paste0("R^2 linear= ", rsq)
+```
+
+
+# Fit a GLM with ridge/lasso or elasticnet regularization
+Description
+Fit a generalized linear model via penalized maximum likelihood. The regularization path is computed for the ridge/lasso or elasticnet penalty at a grid of values for the regularization parameter lambda. Can deal with all shapes of data, including very large sparse data matrices. Fits linear, logistic and multinomial, poisson, and Cox regression models.
+
+# Performing Ridge (L2) regression
+Ridge regression is a method we can use to fit a regression model when multicollinearity is present in the data.
+
+In a nutshell, least squares regression tries to find coefficient estimates that minimize the sum of squared residuals (RSS):
+
+RSS = Σ(yi – ŷi)^2
+
+where:
+
+Σ: A greek symbol that means sum
+yi: The actual response value for the ith observation
+ŷi: The predicted response value based on the multiple linear regression model
+Conversely, ridge regression seeks to minimize the following:
+
+RSS + λΣβj^2
+
+where j ranges from 1 to p predictor variables and λ ≥ 0.
+
+This second term in the equation is known as a shrinkage penalty. In ridge regression, we select a value for λ that produces the lowest possible test MSE (mean squared error).
+
+Step 1: Load the Data
+To perform ridge regression, we’ll use functions from the glmnet package. This package requires the response variable to be a vector and the set of predictor variables to be of the class data.matrix.
+```{r}
+# Load the library
+x <- data.frame(Volkswagen$`Engine HP`, Volkswagen$`city mpg`)
+y <- Volkswagen$MSRP
+x=as.matrix(x)
+```
+
+
+Step 2: Fit the Ridge Regression Model
+Next, we’ll use the glmnet() function to fit the ridge regression model and specify alpha=0.
+
+Note that setting alpha equal to 1 is equivalent to using Lasso Regression and setting alpha to some value between 0 and 1 is equivalent to using an elastic net.
+
+Also note that ridge regression requires the data to be standardized such that each predictor variable has a mean of 0 and a standard deviation of 1.
+
+Fortunately glmnet() automatically performs this standardization for you. If you happened to already standardize the variables, you can specify standardize=False.
+
+```{r}
+library(glmnet)
+
+model.ridge <- glmnet(x, y, alpha = 0)
+summary(model.ridge)
+```
+
+
+Step 3: Choose an Optimal Value for Lambda
+Next, we’ll identify the lambda value that produces the lowest test mean squared error (MSE) by using k-fold cross-validation.
+
+Fortunately, glmnet has the function cv.glmnet() that automatically performs k-fold cross validation using k = 10 folds.
+
+```{r}
+#perform k-fold cross-validation to find optimal lambda value
+cv_model <- cv.glmnet(x, y, alpha = 0)
+
+#find optimal lambda value that minimizes test MSE
+best_lambda <- cv_model$lambda.min
+best_lambda
+
+#produce plot of test MSE by lambda value
+plot(cv_model) 
+```
+
+
+Step 4: Analyze Final Model
+Lastly, we can analyze the final model produced by the optimal lambda value.
+
+We can use the following code to obtain the coefficient estimates for this model:
+```{r}
+#find coefficients of best model
+best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda)
+coef(best_model)
+```
+
+
+Step 5: Predict Ridge model
+```{r}
+predict.ridge <- predict(best_model, x, type = "response")
+plot(y, predict.ridge, col='brown')
+abline(lm(y ~ predict.ridge))
+```
+
+
+We can also produce a Trace plot to visualize how the coefficient estimates changed as a result of increasing lambda:
+```{r}
+#produce Ridge trace plot
+plot(model.ridge, xvar = "lambda")
+```
+
+
+Calculate the errors and R-squared of the model ridge:
+```{r}
+#find SST and SSE
+sst <- sum((y - mean(y))^2)
+paste0("sst ridge= ", sst)
+sse <- sum((predict.ridge - y)^2)
+paste0("sse ridge= ", sse)
+
+#find R-Squared
+rsq <- 1 - sse/sst
+paste0("R^2 ridge= ", rsq)
+```
+
+The R-squared turns out to be 0.6801472. That is, the best model was able to explain 68.01472% of the variation in the response values of the training data.
+
+
+# Performing Lasso (L1) regression
+Lasso regression is a method we can use to fit a regression model when multicollinearity is present in the data.
+
+In a nutshell, least squares regression tries to find coefficient estimates that minimize the sum of squared residuals (RSS):
+
+RSS = Σ(yi – ŷi)2
+
+where:
+
+Σ: A greek symbol that means sum
+yi: The actual response value for the ith observation
+ŷi: The predicted response value based on the multiple linear regression model
+Conversely, lasso regression seeks to minimize the following:
+
+RSS + λΣ|βj|
+
+where j ranges from 1 to p predictor variables and λ ≥ 0.
+
+This second term in the equation is known as a shrinkage penalty. In lasso regression, we select a value for λ that produces the lowest possible test MSE (mean squared error).
+
+This tutorial provides a step-by-step example of how to perform lasso regression in R.
+
+Step 1: Load the Data
+
+```{r}
+# Load the library
+x <- data.frame(Volkswagen$`Engine HP`, Volkswagen$`city mpg`) # Predictor
+y <- Volkswagen$MSRP # Target
+x=as.matrix(x)
+```
+
+To perform lasso regression, we’ll use functions from the glmnet package. This package requires the response variable to be a vector and the set of predictor variables to be of the class data.matrix.
+
+
+Step 2: Fit the Lasso Regression Model
+Next, we’ll use the glmnet() function to fit the lasso regression model and specify alpha=1.
+
+Note that setting alpha equal to 1 is equivalent to using lasso regression and setting alpha to some value between 0 and 1 is equivalent to using an elastic net. 
+
+To determine what value to use for lambda, we’ll perform k-fold cross-validation and identify the lambda value that produces the lowest test mean squared error (MSE).
+
+Note that the function cv.glmnet() automatically performs k-fold cross validation using k = 10 folds.
+```{r}
+library(glmnet)
+
+#perform k-fold cross-validation to find optimal lambda value
+cv_model <- cv.glmnet(x, y, alpha = 1)
+
+#find optimal lambda value that minimizes test MSE
+best_lambda <- cv_model$lambda.min
+best_lambda
+
+#produce plot of test MSE by lambda value
+plot(cv_model)
+```
+
+Test MSE for lasso regression: The lambda value that minimizes the test MSE turns out to be 35.84677.
+
+Step 3: Analyze Final Model
+Lastly, we can analyze the final model produced by the optimal lambda value.
+
+We can use the following code to obtain the coefficient estimates for this model:
+
+```{r}
+#find coefficients of best model
+best_model <- glmnet(x, y, alpha = 1, lambda = best_lambda)
+coef(best_model)
+```
+
+Note a key difference between ridge regression and lasso regression. Ridge regression shrinks all coefficients towards zero, but lasso regression has the potential to remove predictors from the model by shrinking the coefficients completely to zero.
+
+
+Lastly, we can calculate the R-squared of the model lasso on the training data:
+```{r}
+#use fitted best model to make predictions
+y_predicted <- predict(best_model, s = best_lambda, newx = x)
+
+#find SST and SSE
+sst <- sum((y - mean(y))^2)
+sse <- sum((y_predicted - y)^2)
+paste0("sst lasso= ", sst)
+paste0("sse lasso= ", sse)
+
+#find R-Squared
+rsq <- 1 - sse/sst
+paste0("R^2 lasso= ", rsq)
+```
+
+The R-squared turns out to be 0.685198433867003. That is, the best model was able to explain 68.5198433867003% of the variation in the response values of the training data.
+
+Predict lasso model
+```{r}
+predict.lasso <- predict(best_model, x, type = "response")
+plot(y, predict.lasso, col='blue')
+abline(lm(y ~ predict.lasso))
+```
+
+
+
+
+
+
+
+
